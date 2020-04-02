@@ -1,11 +1,12 @@
-var resolve = require("path").resolve;
-var webpack = require("webpack");
+const path = require("path");
+const webpack = require("webpack");
 const VueLoaderPlugin = require('vue-loader/lib/plugin');
 
 module.exports = {
   entry: "./src/entry.js",
+  mode: 'development',
   output: {
-    path: resolve(__dirname, "./dist"),
+    path: path.resolve(__dirname, "./dist"),
     publicPath: "/dist/",
     filename: "build.js"
   },
@@ -20,7 +21,7 @@ module.exports = {
         loader: "babel-loader",
         exclude: /node_modules/,
         options: {
-          presets: ["es2015"]
+          presets: ["@babel/preset-env"]
         }
       },
       {
@@ -30,17 +31,45 @@ module.exports = {
       {
         test: /\.md$/,
         use: ['vue-loader', {
-          loader: resolve(__dirname, "../index.js"),
-          options: {wrapper: 'div', raw: true}
+          loader: path.resolve(__dirname, "../index.js"),
+          options: {
+            raw: false,
+            transformer: ({ meta, code, strip, id, highlightCode }) => {
+              const { template, script, style } = strip(code);
+              const jsfiddle = {
+                ...meta,
+                id,
+                sourceCode: code
+              };
+              return `
+                <template>
+                  <demo-box :jsfiddle='${JSON.stringify(jsfiddle)}'>
+                    <template slot="component">${template}</template>
+                    <template slot="description">${id}</template>
+                    <template slot="us-description">${id}</template>
+                    <template slot="code">${Buffer.from(highlightCode.html).toString('base64')}</template>
+                  </demo-box>
+                </template>
+                <script>
+                  ${script}
+                </script>
+                <style>
+                 ${style}
+                </style>
+              `;
+            },
+          }
         }],
       }
     ]
   },
   devServer: {
     historyApiFallback: true,
-    noInfo: true
+    // open: true,
+    // noInfo: true
   },
   plugins: [
     new VueLoaderPlugin(),
+    new webpack.HotModuleReplacementPlugin()
   ],
 };
